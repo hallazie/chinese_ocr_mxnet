@@ -1,0 +1,22 @@
+# ignore image data
+data/
+*.png
+
+# ignore parameter files
+params/
+*.params
+
+# ignore font files
+font/
+*.TTF
+*.ttf
+*.TTC
+*.ttc
+
+# ignore all gen source
+sample/
+pool/
+
+*.pyc
+*.txt
+notes.md
