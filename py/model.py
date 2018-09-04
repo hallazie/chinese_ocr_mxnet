@@ -23,6 +23,7 @@ def ctc(vobsize, train=True):
 	# 256 * 64 --> 64 * 8
 	data = mx.symbol.Variable('data')
 	label= mx.symbol.Variable('label')
+	fweight = mx.symbol.Variable('f_weight')
 	c1 = conv_block(data,32)
 	c2 = conv_block(c1,32)
 	p2 = pool_block(c2)
@@ -40,9 +41,12 @@ def ctc(vobsize, train=True):
 	for i in range(32):
 		sls = mx.symbol.slice(tr, begin=(None,i,None,None), end=(None,i+1,None,None))
 		flt = mx.symbol.flatten(sls)
-		slc.append(mx.symbol.FullyConnected(flt, num_hidden=vobsize, flatten=False))
+		fcn = mx.symbol.FullyConnected(flt, num_hidden=vobsize, flatten=False, weight=fweight, no_bias=True)
+		slc.append(mx.symbol.expand_dims(fcn, axis=1))
 	cat = mx.symbol.concat(*slc)
+	out = mx.symbol.transpose(cat, axes=(1,0,2))
 	if not train:
-		return cat
-	loss = mx.symbol.contrib.CTCLoss(data=cat, label=label)
+		return out
+	ctc_loss = mx.symbol.contrib.ctc_loss(out, label)
+	loss = mx.symbol.MakeLoss(ctc_loss)
 	return loss

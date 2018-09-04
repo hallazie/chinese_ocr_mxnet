@@ -11,17 +11,34 @@ from collections import namedtuple
 
 import model
 
-vobsize = 3000
+vobsize = 256
 batch_size = 4
 model_prefix = '../params/ctc'
 ctx = mx.gpu(0)
 
 Batch = namedtuple('Batch', ['data'])
 
+def arguments():
+    symbol = model.ctc(3000)
+    arg_names = symbol.list_arguments()
+    arg_shapes, out_shapes, aux_shapes = symbol.infer_shape(data=(4,1,256,64), label=(4,24))
+    for name, shape in zip(arg_names, arg_shapes):
+        print '%s\t\t%s'%(name, shape)
+    print '%s\t\t%s'%('output', out_shapes[0])
+
 def train():
 	symbol = model.ctc(vobsize)
-	dataiter = mx.io.NDArrayIter(data=np.ones((500, 1, 256, 64)), label=np.ones((500, 24)), batch_size=batch_size, shuffle=True)
-	symbol = mx.mod.Module(symbol=symbol, context=ctx, data_names=('data',), label_names=('softmax_label',))
+	data = mx.nd.normal(loc=0, scale=1, shape=(64, 1, 256, 64))
+	label = mx.nd.normal(loc=0, scale=1, shape=(64, 24))
+	dataiter = mx.io.NDArrayIter(
+		data = data,
+		label = label,
+		batch_size = batch_size,
+		shuffle = False,
+		data_name='data',
+		label_name='label'
+	)
+	symbol = mx.mod.Module(symbol=symbol, context=ctx, data_names=('data',), label_names=('label',))
 	symbol.bind(data_shapes=dataiter.provide_data, label_shapes=dataiter.provide_label)
 	symbol.init_params(initializer=mx.init.Uniform(scale=.1))
 	symbol.fit(
@@ -36,15 +53,13 @@ def train():
 
 def test():
 	symbol = model.ctc(vobsize, False)
-	dataiter = mx.io.NDArrayIter(data=np.ones((1, 1, 256, 64)), label=np.ones((1, 24)), batch_size=1, shuffle=True)
-	symbol = mx.mod.Module(symbol=symbol, context=mx.cpu(0), data_names=('data',), label_names=('softmax_label',))
+	dataiter = mx.io.NDArrayIter(data=mx.nd.normal(loc=0, scale=1, shape=(2, 1, 256, 64)), label=mx.nd.normal(loc=0, scale=1, shape=(2, 24)), batch_size=2, shuffle=True)
+	symbol = mx.mod.Module(symbol=symbol, context=mx.cpu(0), data_names=('data',), label_names=('label',))
 	symbol.bind(for_training=False, data_shapes=dataiter.provide_data)
 	symbol.init_params(initializer=mx.init.Uniform(scale=.1))
-	symbol.forward(Batch([mx.nd.ones((1,1,256,64))]))
-	out = symbol.get_outputs()[0][0].asnumpy()
+	symbol.forward(Batch([mx.nd.ones((2,1,256,64))]))
+	out = symbol.get_outputs()[0].asnumpy()
 	print out.shape
 
-
-
 if __name__ == '__main__':
-	test()
+	train()
