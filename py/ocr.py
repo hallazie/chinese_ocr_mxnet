@@ -62,4 +62,4 @@ def test():
 	print out.shape
 
 if __name__ == '__main__':
-	train()
+	test()
