@@ -1,6 +1,7 @@
 # ignore image data
 data/
 *.png
+*.dat
 
 # ignore parameter files
 params/
@@ -17,6 +18,9 @@ font/
 sample/
 pool/
 
+*.png
+*.dat
+*.params
 *.pyc
 *.txt
 notes.md
