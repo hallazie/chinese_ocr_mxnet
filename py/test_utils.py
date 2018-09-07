@@ -6,8 +6,8 @@ ctx = mx.gpu(0)
 def check_ctc_loss(acts, labels, loss_truth):
     in_var = mx.sym.Variable('data')
 
-    t1 = mx.symbol.reshape(in_var, (3,10))
-    t2 = mx.symbol.FullyConnected(t1, num_hidden=10, no_bias=True)
+    t1 = mx.symbol.reshape(in_var, (6,10))
+    t2 = mx.symbol.FullyConnected(t1, num_hidden=5, no_bias=True)
     t3 = mx.symbol.reshape(t2, (3,2,5))
 
     labels_var = mx.sym.Variable('label')
@@ -15,13 +15,15 @@ def check_ctc_loss(acts, labels, loss_truth):
     loss = mx.symbol.MakeLoss(ctc)
 
     arg_names = loss.list_arguments()
-    arg_shapes,_,_ = loss.infer_shape(data=(3,2,5), label=(2,3))
+    arg_shapes,_,_ = loss.infer_shape(data=(6,2,5), label=(2,3))
     for name, shape in zip(arg_names, arg_shapes):
         print '%s\t\t\t%s'%(name, shape)
-    acts_nd = mx.nd.array(acts, ctx=ctx)
-    weight_nd = mx.nd.array(np.ones((10,10)), ctx=ctx)
-    labels_nd = mx.nd.array(labels, ctx=ctx)
-    exe = loss.bind(ctx=ctx, args=[acts_nd, weight_nd, labels_nd])
+    # acts_nd = mx.nd.array(acts, ctx=ctx)
+    # weight_nd = mx.nd.array(np.ones((5,10)), ctx=ctx)
+    # labels_nd = mx.nd.array(labels, ctx=ctx)
+    # exe = loss.bind(ctx=ctx, args=[acts_nd, weight_nd, labels_nd])
+    arg_array = [mx.nd.normal(shape=shape, ctx=ctx) for shape in arg_shapes]
+    exe = loss.bind(ctx=ctx, args=arg_array)
     exe.forward(is_train=True)
     exe.backward()
     outTest = exe.outputs[0]
@@ -34,8 +36,11 @@ def test_ctc_loss():
     acts = np.array([
         [[1.2, 3.4, 1.2, -0.1, -2.34], [1.2, 3.4, 1.2, -0.1, -2.34]],
         [[0.1, 0.2, 0.3, 0.22, 0.123], [0.1, 0.2, 0.3, 0.22, 0.123]],
-        [[-15, -14, -13, -12, -11], [-15, -14, -13, -12, -11]]],
-                    dtype=np.float32)
+        [[-15, -14, -13, -12, -11], [-15, -14, -13, -12, -11]],
+        [[1.2, 3.4, 1.2, -0.1, -2.34], [1.2, 3.4, 1.2, -0.1, -2.34]],
+        [[0.1, 0.2, 0.3, 0.22, 0.123], [0.1, 0.2, 0.3, 0.22, 0.123]],
+        [[-15, -14, -13, -12, -11], [-15, -14, -13, -12, -11]]
+        ], dtype=np.float32)
     labels = np.array([[22,3,1], [3,4,1]])
     true_loss = np.array([4.04789, 4.04789], dtype=np.float32) # from Torch
     check_ctc_loss(acts, labels, true_loss)
@@ -96,4 +101,26 @@ def foo():
     print '%s'%(outTest.asnumpy())
 
 if __name__ == '__main__':
-    test_ctc_loss()
+    in_var = mx.sym.Variable('data')
+
+    t1 = mx.symbol.reshape(in_var, (6,10))
+    t2 = mx.symbol.FullyConnected(t1, num_hidden=5, no_bias=True)
+    t3 = mx.symbol.reshape(t2, (3,2,5))
+
+    labels_var = mx.sym.Variable('label')
+    ctc = mx.sym.contrib.ctc_loss(t3, labels_var)
+    loss = mx.symbol.MakeLoss(ctc)
+
+    arg_names = loss.list_arguments()
+    arg_shapes,_,_ = loss.infer_shape(data=(6,2,5), label=(2,3))
+    for name, shape in zip(arg_names, arg_shapes):
+        print '%s\t\t\t%s'%(name, shape)
+
+    arg_array = [mx.nd.normal(shape=shape, ctx=ctx) for shape in arg_shapes]
+    exe = loss.bind(ctx=ctx, args=arg_array)
+    exe.forward(is_train=True)
+    exe.backward()
+    outTest = exe.outputs[0]
+
+    print '%s'%(outTest.asnumpy())
+    print '----------'

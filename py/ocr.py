@@ -22,7 +22,7 @@ import model
 vobsize = 3593
 batch_size = 2
 model_prefix = '../params/ctc'
-ctx = mx.gpu(0)
+ctx = mx.cpu(0)
 img_w = 256
 img_h = 32
 seq_l = 20
@@ -78,13 +78,13 @@ def train():
 
 def test():
 	symbol = model.ctc(vobsize, False)
-	dataiter = mx.io.NDArrayIter(data=mx.nd.normal(loc=0, scale=1, shape=(1, 1, img_w, img_h)), label=mx.nd.normal(loc=0, scale=1, shape=(1, seq_l)), batch_size=2, shuffle=True)
+	dataiter = mx.io.NDArrayIter(data=mx.nd.normal(loc=0, scale=1, shape=(1, 1, img_w, img_h)), label=mx.nd.normal(loc=0, scale=1, shape=(1, seq_l)), batch_size=1, shuffle=True)
 	symbol = mx.mod.Module(symbol=symbol, context=mx.cpu(0), data_names=('data',), label_names=('label',))
 	symbol.bind(for_training=False, data_shapes=dataiter.provide_data)
 	symbol.init_params(initializer=mx.init.Uniform(scale=.1))
-	symbol.forward(Batch([mx.nd.ones((2,1,256,64))]))
+	symbol.forward(Batch([mx.nd.ones((1,1,256,32))]))
 	out = symbol.get_outputs()[0].asnumpy()
 	print out.shape
 
 if __name__ == '__main__':
-	train()
+	test()

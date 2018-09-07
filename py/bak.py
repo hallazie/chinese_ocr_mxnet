@@ -19,8 +19,8 @@ from collections import namedtuple
 
 # -----------------------------------------------------------------------------------------------------------------------
 
-vobsize = 200
-batch_size = 2
+vobsize = 3593
+batch_size = 8
 model_prefix = '../params/ctc'
 data_path = '../data/train/image/'
 label_path = '../data/train/label/'
@@ -32,7 +32,7 @@ epoch_size = 256
 epoch = 10
 iterstop = 0
 
-mod = namedtuple('mod', ['exc', 'symbol', 'data', 'label', 'arg_names', 'arg_dict', 'aux_dict', 'grd_dict'])
+mod = namedtuple('mod', ['exc', 'symbol', 'data', 'label', 'arg_names', 'arg_dict'])
 
 # -----------------------------------------------------------------------------------------------------------------------
 
@@ -41,13 +41,13 @@ def conv_block(data, num_filter, kernel=(3,3), stride=(1,1), pad=(1,1), act_type
 		conv = mx.symbol.Convolution(data=data, num_filter=num_filter, kernel=kernel, stride=stride, pad=pad)
 	else:
 		conv = mx.symbol.Convolution(data=data, num_filter=num_filter, kernel=(3,3), stride=stride, pad=(2,2), dilate=(1,1))
-	bn = mx.symbol.BatchNorm(data=conv)
+	# bn = mx.symbol.BatchNorm(data=conv)
 	if act_type == 'leaky':
-		act = mx.symbol.LeakyReLU(data=bn)
+		act = mx.symbol.LeakyReLU(data=conv)
 	elif act_type == 'none':
-		act = bn
+		act = conv
 	else:
-		act = mx.symbol.Activation(data=bn, act_type=act_type)
+		act = mx.symbol.Activation(data=conv, act_type=act_type)
 	return act
 
 def pool_block(data, stride=(2,2), kernel=(2,2), pool_type='avg'):
@@ -57,31 +57,31 @@ def ctc(vobsize, train=True):
 	# 256 * 64 --> 64 * 8
 	data = mx.symbol.Variable('data')
 	label= mx.symbol.Variable('label')
-	fweight = mx.symbol.Variable('f_weight')
-	c1 = conv_block(data,32)
-	c2 = conv_block(c1,32)
-	p2 = pool_block(c2)
-	c3 = conv_block(p2,64)
-	c4 = conv_block(c3,64)
-	p4 = pool_block(c4)
-	c5 = conv_block(p4,128)
-	c6 = conv_block(c5,128)
-	c7 = conv_block(c6,128)
-	p7 = pool_block(c7)
-	c8 = conv_block(p7,192)
-	c9 = conv_block(c8,192)
-	tr = mx.symbol.transpose(c9, axes=(0,2,1,3))
-	slc = []
-	for i in range(32):
-		sls = mx.symbol.slice(tr, begin=(None,i,None,None), end=(None,i+1,None,None))
-		flt = mx.symbol.flatten(sls)
-		fcn = mx.symbol.FullyConnected(flt, num_hidden=vobsize, flatten=False, weight=fweight, no_bias=True)
-		slc.append(mx.symbol.expand_dims(fcn, axis=1))
-	cat = mx.symbol.concat(*slc)
-	out = mx.symbol.transpose(cat, axes=(1,0,2))
-	if not train:
-		return out
-	ctc_loss = mx.symbol.contrib.ctc_loss(out, label)
+	# fweight = mx.symbol.Variable('f_weight')
+	# c1 = conv_block(data,32)
+	# c2 = conv_block(c1,32)
+	# p2 = pool_block(c2)
+	# c3 = conv_block(p2,64)
+	# c4 = conv_block(c3,64)
+	# p4 = pool_block(c4)
+	# c5 = conv_block(p4,128)
+	# c6 = conv_block(c5,128)
+	# c7 = conv_block(c6,128)
+	# p7 = pool_block(c7)
+	# c8 = conv_block(p7,192)
+	# c9 = conv_block(c8,192)
+	# tr = mx.symbol.transpose(c9, axes=(0,2,1,3))
+	# slc = []
+	# for i in range(32):
+	# 	sls = mx.symbol.slice(tr, begin=(None,i,None,None), end=(None,i+1,None,None))
+	# 	flt = mx.symbol.flatten(sls)
+	# 	fcn = mx.symbol.FullyConnected(flt, num_hidden=vobsize, flatten=False, weight=fweight, no_bias=True)
+	# 	slc.append(mx.symbol.expand_dims(fcn, axis=1))
+	# cat = mx.symbol.concat(*slc)
+	# out = mx.symbol.transpose(cat, axes=(1,0,2))
+	# if not train:
+	# 	return out
+	ctc_loss = mx.symbol.contrib.ctc_loss(data, label)
 	loss = mx.symbol.MakeLoss(ctc_loss)
 	return loss
 
@@ -90,28 +90,12 @@ def ctc(vobsize, train=True):
 def bind():
 	symbol = ctc(vobsize+1)
 	arg_names = symbol.list_arguments()
-	aux_names = symbol.list_auxiliary_states()
-	arg_shapes, output_shapes, aux_shapes = symbol.infer_shape(data = (batch_size, 1, img_w, img_h), label=(batch_size, seq_l))
+	# arg_shapes, output_shapes, aux_shapes = symbol.infer_shape(data = (batch_size, 1, img_w, img_h), label=(batch_size, seq_l))
+	arg_shapes, output_shapes, aux_shapes = symbol.infer_shape(data = (32,4,vobsize), label=(4, seq_l))
 	arg_array = [mx.nd.normal(shape=shape, ctx=ctx) for shape in arg_shapes]
-	aux_array = [mx.nd.normal(shape=shape, ctx=ctx) for shape in aux_shapes]
 	arg_dict = dict(zip(arg_names, arg_array))
-	aux_dict = dict(zip(aux_names, aux_array))
-	grd_dict = {}
-	for name, shape in zip(arg_names, arg_shapes):
-		print '%s\t\t%s'%(name, shape)
-		if name in ['data', 'label']:
-			continue
-		grd_dict[name] = mx.nd.normal(shape=shape, ctx=ctx)
-	exc = symbol.bind(
-		ctx=ctx,
-		args = arg_dict,
-		args_grad = grd_dict,
-		aux_states = aux_dict,	
-		grad_req = 'write'
-		)
-	[arg_names.remove(name) for name in ['data', 'label']]
-	data, label = exc.arg_dict['data'], exc.arg_dict['label']
-	return mod(exc = exc, symbol = symbol, data = data, label = label, arg_names = arg_names, arg_dict = arg_dict, aux_dict = aux_dict, grd_dict = grd_dict)
+	exc = symbol.bind(ctx=ctx, args = arg_array)
+	return exc
 
 # -----------------------------------------------------------------------------------------------------------------------
 
@@ -132,7 +116,7 @@ def init_data():
 						rdd = [e+1 for e in eval(l.readline().strip())]
 						lbl[:len(rdd)] = rdd
 					data[j] = np.array(img.convert('L')).reshape((1, img_w, img_h))
-					label[j] = np.clip(np.array(lbl).reshape((seq_l)), 0, 200)
+					label[j] = np.array(lbl).reshape((seq_l))
 					idx += 1
 				yield [data, label]
 			except Exception as e:
@@ -142,17 +126,44 @@ def init_data():
 # -----------------------------------------------------------------------------------------------------------------------
 
 def train():
-	mod = bind()
-	dataiter = init_data()
-	optmzr = mx.optimizer.Adam(learning_rate=0.005, beta1=0.9, beta2=0.999, epsilon=1e-07)
-	updater = mx.optimizer.get_updater(optmzr)
-	step = 0
-	while iterstop < epoch:
-		data, label = dataiter.next()
-		mod.data[:], mod.label[:] = data, label
-		mod.exc.forward(is_train=True)
-		mod.exc.backward()
-		print mod.exc.outputs[0].asnumpy()
+	in_var = mx.sym.Variable('data')
+	labels_var= mx.sym.Variable('label')
+	ctc = mx.sym.contrib.ctc_loss(in_var, labels_var)
+	loss = mx.sym.MakeLoss(ctc)
+
+	arg_names = loss.list_arguments()
+	arg_shapes, output_shapes, aux_shapes = loss.infer_shape(data=(32,batch_size,3000), label=(batch_size, 20))
+	arg_array = [mx.nd.normal(shape=shape, ctx=ctx) for shape in arg_shapes]
+	exc = loss.bind(ctx=ctx, args = arg_array)
+
+	exc.forward(is_train=True)
+	exc.backward()
+	outTest = exc.outputs[0]
+
+	print '%s'%(outTest.asnumpy())
+	print '----------'
+
+
+def fuck():
+    in_var = mx.sym.Variable('data')
+    t1 = mx.symbol.reshape(in_var, (6,4000))
+    t2 = mx.symbol.FullyConnected(t1, num_hidden=5, no_bias=True)
+    t3 = mx.symbol.reshape(t2, (3,2,5))
+    labels_var = mx.sym.Variable('label')
+    ctc = mx.sym.contrib.ctc_loss(t3, labels_var)
+    loss = mx.symbol.MakeLoss(ctc)
+
+    arg_names = loss.list_arguments()
+    arg_shapes,_,_ = loss.infer_shape(data=(6,2,2000), label=(2,3))
+    arg_array = [mx.nd.normal(shape=shape, ctx=ctx) for shape in arg_shapes]
+    exe = loss.bind(ctx=ctx, args=arg_array)
+
+    exe.forward(is_train=True)
+    exe.backward()
+    outTest = exe.outputs[0]
+
+    print '%s'%(outTest.asnumpy())
+    print '----------'
 
 if __name__ == '__main__':
 	train()
