@@ -74,5 +74,19 @@ def init_dataiter():
 	print data.shape
 	print label.shape
 
+class T():
+	def __init__(self, val):
+		self.val = val
+	def foo(self):
+		self.val += 2
+		return self
+	def fee(self):
+		self.val = self.val**2
+		return self
+	def fum(self):
+		return self.val
+
 if __name__ == '__main__':
-	init_dataiter()
+	# init_dataiter()
+	t = T(3)
+	print t.foo().fee().fum()
