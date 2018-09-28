@@ -20,9 +20,9 @@ from collections import namedtuple
 import model
 
 vobsize = 3593
-batch_size = 2
+batch_size = 32
 model_prefix = '../params/ctc'
-ctx = mx.cpu(0)
+ctx = mx.gpu(0)
 img_w = 256
 img_h = 32
 seq_l = 20
@@ -70,14 +70,14 @@ def train():
 		dataiter,
 		optimizer = 'rmsprop',
 		optimizer_params = {'learning_rate':0.005},
-		eval_metric = 'loss',
+		eval_metric = 'acc',
 		batch_end_callback = mx.callback.Speedometer(batch_size, 5),
 		epoch_end_callback = mx.callback.do_checkpoint(model_prefix, 1),
 		num_epoch = 100,
 	)
 
 def test():
-	symbol = model.ctc(vobsize, False)
+	symbol = model.ctc(200, False)
 	dataiter = mx.io.NDArrayIter(data=mx.nd.normal(loc=0, scale=1, shape=(1, 1, img_w, img_h)), label=mx.nd.normal(loc=0, scale=1, shape=(1, seq_l)), batch_size=1, shuffle=True)
 	symbol = mx.mod.Module(symbol=symbol, context=mx.cpu(0), data_names=('data',), label_names=('label',))
 	symbol.bind(for_training=False, data_shapes=dataiter.provide_data)
@@ -87,4 +87,5 @@ def test():
 	print out.shape
 
 if __name__ == '__main__':
-	test()
+	print 'using mxnet version %s'%mx.__version__
+	train()

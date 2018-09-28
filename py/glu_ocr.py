@@ -14,7 +14,7 @@ from mxnet.gluon import nn
 import mxnet.gluon as gluon
 import mxnet as mx
 
-vobsize = 3593
+vobsize = 100
 batch_size = 2
 model_prefix = '../params/ctc'
 img_w = 256
@@ -97,9 +97,15 @@ def train():
 				loss_ctc = ctc_loss(output, label)
 				loss_ctc = (label!=-1).sum(axis=1)*loss_ctc
 			loss_ctc.backward()
-			loss = loss_ctc.mean()
+			loss = loss_ctc.mean().asnumpy()
 			if i % 20 == 0:
 				print 'epoch %s\t\tbatch %s\t\tloss=%s'%(e, i, loss)
+
+'''
+"D:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat" -vcvars_ver=14.11
+cmake -G "Visual Studio 15 2017 Win64" -T cuda=9.1,host=x64 -DUSE_CUDA=1 -DUSE_CUDNN=1 -DUSE_NVRTC=1 -DUSE_OPENCV=1 -DUSE_OPENMP=1 -DUSE_BLAS=open -DUSE_LAPACK=1 -DUSE_DIST_KVSTORE=0 -DCUDA_ARCH_LIST=Common -DCUDA_TOOLSET=9.1 -DCUDNN_INCLUDE=E:\Env\cuDNN\cuda\include -DCUDNN_LIBRARY=E:\Env\cuDNN\cuda\lib\x64\cudnn.lib "E:\Env\incubator-mxnet"
+
+'''
 
 if __name__ == '__main__':
 	train()

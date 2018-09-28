@@ -2,7 +2,7 @@
 
 import random
 import chardet
-import pygame
+# import pygame
 import os
 import numpy as np
 
@@ -86,7 +86,31 @@ class T():
 	def fum(self):
 		return self.val
 
+def calc_norm(path):
+	array_list = []
+	norm, cnt = 0, 0
+	for _,_,fs in os.walk(path):
+		fs = sorted(fs)[:50]
+		for f in fs:
+			array = np.array(Image.open(path+f).convert('L'))
+			# array = 255*(array-np.min(array))/(np.max(array)-np.min(array))
+			array_list.append(array)
+	for i in range(len(array_list)):
+		for j in range(i):
+			a1 = array_list[i]
+			a2 = array_list[j]
+			norm += np.linalg.norm(a1-a2)
+			cnt += 1
+		# print '%s finished'%(i)
+	return norm/(cnt*(640*480))
+
 if __name__ == '__main__':
 	# init_dataiter()
-	t = T(3)
-	print t.foo().fee().fum()
+	# t = T(3)
+	# print t.foo().fee().fum()
+	norm_sal = calc_norm('E:/Paper/feature_validation/data/norm/saliency_512/')
+	norm_vgg = calc_norm('E:/Paper/feature_validation/data/norm/vgg_feature/')
+	print 'norm sal: %s'%norm_sal
+	print 'norm vgg: %s'%norm_vgg
+	# # norm sal: 9251865169.961721
+	# # norm vgg: 9803585796.040016

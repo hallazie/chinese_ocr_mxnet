@@ -102,25 +102,13 @@ def foo():
 
 if __name__ == '__main__':
     in_var = mx.sym.Variable('data')
-
-    t1 = mx.symbol.reshape(in_var, (6,10))
-    t2 = mx.symbol.FullyConnected(t1, num_hidden=5, no_bias=True)
-    t3 = mx.symbol.reshape(t2, (3,2,5))
-
     labels_var = mx.sym.Variable('label')
-    ctc = mx.sym.contrib.ctc_loss(t3, labels_var)
+    ctc = mx.sym.contrib.ctc_loss(in_var, labels_var)
     loss = mx.symbol.MakeLoss(ctc)
-
-    arg_names = loss.list_arguments()
-    arg_shapes,_,_ = loss.infer_shape(data=(6,2,5), label=(2,3))
-    for name, shape in zip(arg_names, arg_shapes):
-        print '%s\t\t\t%s'%(name, shape)
-
+    arg_shapes,_,_ = loss.infer_shape(data=(6,2,1000), label=(2,3))
     arg_array = [mx.nd.normal(shape=shape, ctx=ctx) for shape in arg_shapes]
     exe = loss.bind(ctx=ctx, args=arg_array)
     exe.forward(is_train=True)
     exe.backward()
     outTest = exe.outputs[0]
-
     print '%s'%(outTest.asnumpy())
-    print '----------'

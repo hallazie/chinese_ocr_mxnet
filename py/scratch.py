@@ -120,6 +120,7 @@ def init_data():
 		fs = fs[:20]
 		random.shuffle(fs)
 		idx = 0
+		iterstop = 0
 		while True:
 			try:
 				data = np.zeros((batch_size, 1, img_w, img_h))
